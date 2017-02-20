@@ -24,11 +24,12 @@ Adafruit_TLC59711 tlc = Adafruit_TLC59711(NUM_TLC59711, clock, data);
 uint32_t maxx = 65535;
 
 uint32_t startLevel = 0;
+//re-set this with new plug in
 int numLights = 7;  //Number of lights we are controlling
 uint32_t level_increment = maxx / numLights;  // divide the num of lights by the max, to evenly distribute
 uint32_t currentMax = level_increment + startLevel;
 
-
+int randLights[] = {3, 6, 2, 4, 1, 5, 0};
 
 int flickerPts[5];
 //int delayPts[5];
@@ -36,6 +37,7 @@ int delayPts[] = {50, 100, 15, 200, 50};
 int delayPts2[] = {10, 50, 8, 100, 25};
 long randNumber;
 
+// re-set this with alt plug in
 int lightSpiral[] = {
   3, 0, 1, 4, 7, 6
 };
@@ -78,55 +80,120 @@ void loop() {
   //two_glitchFlicker();
   //heartBeat(1.5);
   //all_glitch();
-  frustration();
+  //frustration();
 
-/*
-  int pot_r = analogRead(POT);
-  //Serial.print("pot is: "); Serial.println(pot_r);
-  uint32_t  pace = map(pot_r, 0, 1023, 0, rangeLength - 1); // pot max is 872
-  pwm_all(range[pace]);
-*/
+  /*
+    int pot_r = analogRead(POT);
+    //Serial.print("pot is: "); Serial.println(pot_r);
+    uint32_t  pace = map(pot_r, 0, 1023, 0, rangeLength - 1); // pot max is 872
+    pwm_all(range[pace]);
+  */
+  //************************************
 
-/* the lights struggle to come on. I see this as flickering, warbling - 
- * you can see the struggle and they may seem like they're on and OK for a second or 
- * two and then burn out. And it starts again.
- * 
- * This could happen one by one - each bulb on a different schedule - out of synch with 
- * the others - we see the struggle, struggle, struggle, coming on flickering, and burning 
- * out. It's an endless cycle of that. 
- */
+  /* the lights struggle to come on. I see this as flickering, warbling -
+   * you can see the struggle and they may seem like they're on and OK for a second or
+   * two and then burn out. And it starts again.
+   *
+   * This could happen one by one - each bulb on a different schedule - out of synch with
+   * the others - we see the struggle, struggle, struggle, coming on flickering, and burning
+   * out. It's an endless cycle of that.
+   */
 
-  // do this for a certain amount of times:
-  for (int j = 0; j < 2; j++) {
-    //go through all the lights and trow in a few random ones along the way
-    for (int i = 0; i < 6; i++) {
-      flickerArch(i, 1.0, 4, 5000, maxx);
+  /*
+    // do this for a certain amount of times:
+    for (int j = 0; j < 2; j++) {
 
-      delay(200);
+      //go through all the lights and throw in a few random ones along the way
+      for (int i = 0; i < 6; i++) {
+        flickerArch(i, 1.0, 4, 5000, maxx); // turns on this particular light, as well as a random one
+
+        delay(200);
+      }
+      Serial.println(j);
     }
-    Serial.println(j);
+  */
+
+
+  /*
+   *  flickering and blitzing out would start to get in unison and assume the heartbeat throb
+   *  - the calming setting - a few would get in synch - then a few others - until all of them
+   *  are in synch - they stay in synch for a while
+   *
+   *
+   *
+   */
+  // create an array which stores the state of the light; which behavior it's assigned
+  char record = [numLights];
+  // set all the records to flickering
+  for (int i = 0; i < numLights; i++) {
+    record[i] = 'f';
   }
 
-/*
- *  flickering and blitzing out would start to get in unison and assume the heartbeat throb 
- *  - the calming setting - a few would get in synch - then a few others - until all of them 
- *  are in synch - they stay in synch for a while
- *  
- *  
- *  
- */
 
+  int cntdwn = 5000;
+  long startTime = millis();
 
-   Serial.println("moving to heartbeat");
-  for (int i = 0; i < 20; i++) {
-   //heartBeat(1.0);
-  }
-
+  int laps = 0;
+  // how many times are we going to go?
+  while ( laps < 5) {
+    //loop through each light's record and go accordingly
+    for (int i = 0; i < numLights; i++) {
+      if (record[i] == 'f') {
+        flicker(i.....);
+      }
+      else if (record[i] == 'p') {
+        p(i......);
+      }
+    } // all the lights to action
+   
+    // need to make mechanism that changes the light
   
+    // every so often, say 4 seconds
+    bool leave = 0;
+    int changer = numLights - 1;
+    if(millis() - startTime > 4000){
+      record[changer] = 'p';
+      changer--;
+      if(changer < 0){
+        changer = 0;
+        leave = 1;
+        break;
+      }
+      // re-set the clock
+      startTime = millis();
+      if(leave = 1) break;
+    } // end of flipping record
+
+    laps++;
+  } // end of lap
+
+  Serial.println("done");
+  delay(5000);
+
+  /*
+  Serial.println("transitioning toward heartbeat");
+  for (int i = 0; i < 8; i++) {
+   tlc.setPWM(i, 0);
+  }
+  tlc.write();
+  delay(3000);
+  */
+
+  Serial.println("in the heartbeat");
+  //for (int i = 0; i < 20; i++) {
+
+  // get a time stamp
+  while (millis() - start time < 10 seconds) {
+    heartBeat(1.0);
+
+  }
+
+
+
 
   //be off
   /*
-  analogWrite(demoLED, 0);
+
   //tlc.setPWM(4, 0);
   //tlc.write();
   delay(5000);
@@ -134,8 +201,8 @@ void loop() {
   // try to turn on:
   // flicker(4, 1.0, 4, 5000);
   //flickerArch(1, 1.0, 4, 5000, maxx);
-  
- 
+
+
   /*
   // turn all the lights off
   delay(2000);
@@ -144,8 +211,8 @@ void loop() {
   }
   tlc.write();
   */
-  
-  
+
+
 
 }  // end of loop
 
@@ -472,16 +539,18 @@ void heartBeat_weird(float tempo) {
   }
 }
 
+// flickers on and off, then flickers off and on....
 void flickerArch(int light, float temp, int t, uint32_t level1, uint32_t level2) {
   //tlc.setPWM(lightSpiral[light], 0);
   int randie = int(random(sizeof(lightSpiral) / sizeof(int))); //
   // tlc.write();
   //delay(5000);
-  // try to turn on:
+  // try to turn on a little dim:
   flicker(lightSpiral[light], temp, t, level1);
-  // turn on
+  // turn on brighter
   tlc.setPWM(lightSpiral[light], level2);
 
+  // turn another random one on
   flicker(lightSpiral[randie], temp, t, level1);
   tlc.setPWM(lightSpiral[randie], level2);
 
@@ -491,6 +560,7 @@ void flickerArch(int light, float temp, int t, uint32_t level1, uint32_t level2)
   tlc.setPWM(lightSpiral[light], 0);
   tlc.write();
   delay(100);
+  //flicker briefly brighter
   flicker(lightSpiral[light], temp, t + 1, level2);
 
   tlc.setPWM(lightSpiral[randie], 0);
@@ -502,6 +572,7 @@ void flickerArch(int light, float temp, int t, uint32_t level1, uint32_t level2)
 
 }
 
+// flicker on and off for t number of times. Ends off
 void flicker(int light, float tempo, int t, uint32_t level) {
   //Serial.println("Flicker");
 
@@ -515,9 +586,9 @@ void flicker(int light, float tempo, int t, uint32_t level) {
     if ((beatIndex % 2) == 0) {
 
 
-      for (int i = 0; i < t; i++) {
+      for (int i = 0; i < t; i++) {   // flicker for "t" times
         //  for (int j = 0; j <= 10; j++) {
-        analogWrite(demoLED, 255);
+        //analogWrite(demoLED, 255);
         tlc.setPWM(light, level);
         tlc.write();  //MUST BE CALLED TO DISPLAY CHANGES
         // }
@@ -528,7 +599,7 @@ void flicker(int light, float tempo, int t, uint32_t level) {
         // }
         //delayPts[i] = random(50, 500);
         // for (int j = 0; j <= 10; j++) {
-        analogWrite(demoLED, 0);
+        // analogWrite(demoLED, 0);
         tlc.setPWM(light, 0);
         tlc.write();  //MUST BE CALLED TO DISPLAY CHANGES
         // }
@@ -601,7 +672,7 @@ void allFastBrightTwitchvoid(float tempo) {
 
 }
 
-// old code: can't remember what this is for; 
+// old code: can't remember what this is for;
 // something building in sensation, moving through states
 //2 lights. one rises in value and repeats
 void frustration() {
