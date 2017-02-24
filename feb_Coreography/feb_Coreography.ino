@@ -25,11 +25,12 @@ uint32_t maxx = 65535;
 
 uint32_t startLevel = 0;
 //re-set this with new plug in
-int numLights = 7;  //Number of lights we are controlling
+int numLights = 9;  //Number of lights we are controlling
 uint32_t level_increment = maxx / numLights;  // divide the num of lights by the max, to evenly distribute
 uint32_t currentMax = level_increment + startLevel;
 
-int randLights[] = {3, 6, 2, 4, 1, 5, 0};
+//int randLights[] = {3, 6, 2, 4, 1, 5, 0};
+int randLights[] = {3, 6, 2, 4, 1, 7, 0, 5, 8};
 
 int flickerPts[5];
 //int delayPts[5];
@@ -38,8 +39,14 @@ int delayPts2[] = {10, 50, 8, 100, 25};
 long randNumber;
 
 // re-set this with alt plug in
+
+//int lightSpiral[] = {
+//  3, 0, 1, 4, 7, 6
+//};
+
+
 int lightSpiral[] = {
-  3, 0, 1, 4, 7, 6
+  4, 3, 5, 6, 2, 1, 7, 8, 0
 };
 
 // referencing Paul Badger's Heartbeat sketch ex @ http://playground.arduino.cc/Main/HeartbeatSketch
@@ -58,6 +65,9 @@ byte flickerDelay[] = {100, 2000, 123, 223, 825, 400, 80};
 long range[] = { 255, 257, 771, 1285, 3855, 4369}; //1, 3, 5, 15, 17, 51, 85,  ..13107, 21845, 65535  // take out 255??
 int rangeLength = 6;
 
+char record[9];
+bool leave = 0;
+int changer = numLights - 1;
 
 void setup() {
   Serial.begin(9600);
@@ -71,6 +81,14 @@ void setup() {
     //delayPts[i] = random(50, 1000);
   }
 
+
+  // create an array which stores the state of the light; which behavior it's assigned
+
+  // set all the records to flickering
+  for (int i = 0; i < numLights; i++) {
+    record[i] = 'f';
+  }
+  Serial.println("all lights will be flickering");
 }
 
 void loop() {
@@ -104,7 +122,7 @@ void loop() {
     for (int j = 0; j < 2; j++) {
 
       //go through all the lights and throw in a few random ones along the way
-      for (int i = 0; i < 6; i++) {
+      for (int i = 0; i < numLights; i++) {
         flickerArch(i, 1.0, 4, 5000, maxx); // turns on this particular light, as well as a random one
 
         delay(200);
@@ -122,54 +140,63 @@ void loop() {
    *
    *
    */
-  // create an array which stores the state of the light; which behavior it's assigned
-  char record = [numLights];
-  // set all the records to flickering
-  for (int i = 0; i < numLights; i++) {
-    record[i] = 'f';
-  }
 
 
-  int cntdwn = 5000;
-  long startTime = millis();
 
+
+
+  int cntdwn = 20000;
+  long switchTime = millis();
+  
   int laps = 0;
-  // how many times are we going to go?
-  while ( laps < 5) {
+  long startTime = millis();
+  // how many times are we going to go? must be longer than the switchTime
+  while ( millis() - startTime < cntdwn) {
+    Serial.println("top of while loop");
+    
     //loop through each light's record and go accordingly
     for (int i = 0; i < numLights; i++) {
+      Serial.println("inside for-loop");
       if (record[i] == 'f') {
-        flicker(i.....);
+        flickerArch_1(randLights[i], 1.0, 4, 5000, maxx);
       }
       else if (record[i] == 'p') {
-        p(i......);
+        Serial.println("we are pwm'ing a light");
+        int pot_r = analogRead(POT);
+        //Serial.print("pot is: "); Serial.println(pot_r);
+        uint32_t  pace = map(pot_r, 0, 1023, 0, rangeLength - 1); // pot max is 872
+        pwm_some(range[pace], randLights[i]);
       }
     } // all the lights to action
-   
-    // need to make mechanism that changes the light
-  
-    // every so often, say 4 seconds
-    bool leave = 0;
-    int changer = numLights - 1;
-    if(millis() - startTime > 4000){
+
+
+    // every so often, say 4 seconds, change the record on a light
+
+    Serial.println("has enough time passed?");
+    if (millis() - switchTime > 4000) {
+      Serial.println("YES....changing a record");
+      // change the record on one light
       record[changer] = 'p';
       changer--;
-      if(changer < 0){
-        changer = 0;
+      Serial.println(changer);
+      // re-set the clock
+      switchTime = millis();
+      if (changer <= 0) {
+        changer = numLights-1;
         leave = 1;
         break;
       }
-      // re-set the clock
-      startTime = millis();
-      if(leave = 1) break;
+
+      Serial.println("leaving record change");
     } // end of flipping record
 
-    laps++;
-  } // end of lap
+    //laps++;
+    Serial.println("oneLap, bottom of While loop");
+  } // end of lap while
 
   Serial.println("done");
-  delay(5000);
-
+  //delay(5000);
+  //* /
   /*
   Serial.println("transitioning toward heartbeat");
   for (int i = 0; i < 8; i++) {
@@ -179,14 +206,14 @@ void loop() {
   delay(3000);
   */
 
-  Serial.println("in the heartbeat");
+  //Serial.println("in the heartbeat");
   //for (int i = 0; i < 20; i++) {
 
   // get a time stamp
-  while (millis() - start time < 10 seconds) {
-    heartBeat(1.0);
+  // while (millis() - start time < 10 seconds) {
+  // heartBeat(1.0);
 
-  }
+  //}
 
 
 
@@ -217,6 +244,54 @@ void loop() {
 }  // end of loop
 
 
+void pwm_some(uint32_t pace_, int light) {
+  uint32_t last;
+  //uint32_t maxx = 65535;
+  //up:
+  //uint32_t level_increment;
+  // put a pot up to pick one of these values from an array mapped to it's dial
+  // 1, 3, 5, 15, 17, 51, 85, 255, 257, 771, 1285, 3855, 4369, 13107, 21845, 65535
+  for (uint32_t level_increment = 0; level_increment <= 65535; level_increment += pace_) {  // for (uint32_t level_increment = 0; level_increment <= 65535; level_increment += 255) { works
+    //Serial.println("inside increase");
+    //for (int i = 0; i < 9; i++) {
+    tlc.setPWM(light, level_increment);
+    //}
+    tlc.write(); // time here and all at once w/o delay below;  w/delay below time btwn ea step
+    //delay(10); // time btwn each stage
+    //Serial.println(level_increment);
+    last = level_increment;
+  }
+
+  //down
+  //uint32_t level_incrementb;
+  for (uint32_t level_incrementb = last; level_incrementb > 0; level_incrementb -= pace_) {
+    //Serial.println("inside decrease");
+    //for (int i = 0; i < 9; i++) {
+    tlc.setPWM(light, level_incrementb);
+    //}
+    tlc.write(); // time here and all at once w/o delay below; w/delay below time btwn ea step
+    //delay(10); // time btwn each stage
+    //Serial.println(level_incrementb);
+  }
+
+}
+
+
+void flickerArch_1(int light, float temp, int t, uint32_t level1, uint32_t level2) {
+
+  // try to turn on:
+  flicker(lightSpiral[light], temp, t, level1);
+  // turn on
+  tlc.setPWM(lightSpiral[light], level2);
+
+  tlc.write();
+  delay(2000);
+  // briefly turn off
+  tlc.setPWM(lightSpiral[light], 0);
+  tlc.write();
+  delay(100);
+
+}
 
 
 
@@ -412,7 +487,7 @@ void heartBeat(float tempo) {
     if (hbeatIndex > 3) hbeatIndex = 0;
     if ((hbeatIndex % 2) == 0) {
 
-      for (int LEDpin = 0; LEDpin <= 8; LEDpin++) {
+      for (int LEDpin = 0; LEDpin <= numLights; LEDpin++) {
         //digitalWrite(demoLED, HIGH);
         tlc.setPWM(lightSpiral[LEDpin], maxx * .5);
         // tlc.write();
@@ -423,7 +498,7 @@ void heartBeat(float tempo) {
       // }  // toggle this for all on off but a bit out of synch  // <-- commented this
       //delay((int)heartBeatArray[hbeatIndex]); // <-- commented this
       // digitalWrite(12, LOW);
-      for (int LEDpin = 0; LEDpin <= 8; LEDpin++) {
+      for (int LEDpin = 0; LEDpin <= numLights; LEDpin++) {
         //digitalWrite(demoLED, LOW);
         tlc.setPWM(lightSpiral[LEDpin], 0);
         //tlc.write();
@@ -449,7 +524,7 @@ void heartBeat_other(float tempo) {
     if (hbeatIndex > 3) hbeatIndex = 0;
     if ((hbeatIndex % 2) == 0) {
 
-      for (int LEDpin = 0; LEDpin <= 8; LEDpin++) {
+      for (int LEDpin = 0; LEDpin <= numLights; LEDpin++) {
         digitalWrite(demoLED, HIGH);
         tlc.setPWM(lightSpiral[LEDpin], maxx * .5);
         tlc.write();
@@ -460,7 +535,7 @@ void heartBeat_other(float tempo) {
         //  }  // toggle this for all on off but a bit out of synch
         //delay((int)heartBeatArray[hbeatIndex]);
         // digitalWrite(12, LOW);
-        // for (int LEDpin = 0; LEDpin <= 8; LEDpin++) {
+        // for (int LEDpin = 0; LEDpin <= numLights; LEDpin++) {
         digitalWrite(demoLED, LOW);
         tlc.setPWM(lightSpiral[LEDpin], 0);
         tlc.write();
@@ -486,7 +561,7 @@ void heartBeat_allButALittleOff(float tempo) {
     if (hbeatIndex > 3) hbeatIndex = 0;
     if ((hbeatIndex % 2) == 0) {
 
-      for (int LEDpin = 0; LEDpin <= 8; LEDpin++) {
+      for (int LEDpin = 0; LEDpin <= numLights; LEDpin++) {
         digitalWrite(demoLED, HIGH);
         tlc.setPWM(lightSpiral[LEDpin], maxx * .5);
         tlc.write();
@@ -495,7 +570,7 @@ void heartBeat_allButALittleOff(float tempo) {
 
       //delay((int)heartBeatArray[hbeatIndex]);
       // digitalWrite(12, LOW);
-      for (int LEDpin = 0; LEDpin <= 8; LEDpin++) {
+      for (int LEDpin = 0; LEDpin <= numLights; LEDpin++) {
         digitalWrite(demoLED, LOW);
         tlc.setPWM(lightSpiral[LEDpin], 0);
         tlc.write();
@@ -519,7 +594,7 @@ void heartBeat_weird(float tempo) {
 
     if ((hbeatIndex % 2) == 0) {
 
-      for (int LEDpin = 0; LEDpin <= 8; LEDpin++) {
+      for (int LEDpin = 0; LEDpin <= numLights; LEDpin++) {
 
         //digitalWrite(12, HIGH);
         tlc.setPWM(lightSpiral[LEDpin], maxx);
@@ -649,15 +724,15 @@ void allFastBrightTwitchvoid(float tempo) {
 
     if ((hbeatIndex % 2) == 0) {
 
-      for (int LEDpin = 0; LEDpin <= 8; LEDpin++) {
-
+      for (int LEDpin = 0; LEDpin <= numLights; LEDpin++) {
+        tlc.setPWM(lightSpiral[5], maxx); // ?? not working
         //digitalWrite(12, HIGH);
         tlc.setPWM(lightSpiral[LEDpin], maxx);
         tlc.write();
       }
       delay((int)heartBeatArray[hbeatIndex]);
       // digitalWrite(12, LOW);
-      for (int LEDpin = 0; LEDpin <= 8; LEDpin++) {
+      for (int LEDpin = 0; LEDpin <= numLights; LEDpin++) {
 
         tlc.setPWM(lightSpiral[LEDpin], 0);
         tlc.write();
