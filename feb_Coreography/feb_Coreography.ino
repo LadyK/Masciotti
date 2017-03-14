@@ -71,7 +71,7 @@ byte flickerDelayB[40];
 byte flickerDelayC[40];
 byte flickerDelayD[40];
 
-byte flickerOrder[] = {3, 5, 7, 9, 2, 4, 0, 1, 8, 6};
+byte flickerOrder[] = {0, 5, 7, 9, 2, 4, 3, 1, 8, 6};
 
 // pwm pace is largely set here
 long range[] = { 255, 257, 771, 1285, 3855, 4369}; //1, 3, 5, 15, 17, 51, 85,  ..13107, 21845, 65535  // take out 255??
@@ -82,6 +82,11 @@ bool leave = 0;
 int changer = numLights - 1;
 
 unsigned long crazyNum = 4024967295;
+char limit;
+
+unsigned long timeLimit = 5000;
+unsigned long lastStamp;
+unsigned long lastTime = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -102,7 +107,16 @@ void setup() {
   for (int i = 0; i < numLights; i++) {
     record[i] = 'f';
   }
-  Serial.println("all lights will be flickering");
+  //Serial.println("all lights will be flickering");
+  limit = 0;
+  lastStamp = millis();
+
+  // start off
+  for (int i = 0; i < numLights; i ++) {
+    tlc.setPWM(i, 0);
+  }
+  tlc.write();
+  delay(2000);
 }
 
 void loop() {
@@ -129,7 +143,7 @@ void loop() {
   //************************************
 
   // 1. All lights on medium level
-  for(int i = 0; i < numLights; i ++){
+  for (int i = 0; i < numLights; i ++) {
     tlc.setPWM(i, miniMaxx);
   }
   tlc.write();
@@ -145,53 +159,34 @@ void loop() {
    *
    */
 
-  for (int i = 0; i < 40; i++) {
-    flickerDelay1[i] = int(random(0, 80));  // how long to be on
-    flickerDelay2[i] = int(random(0, 80));
-    flickerDelay3[i] = int(random(0, 80));
-    flickerDelay4[i] = int(random(0, 80));
-  }
-  for (int i = 0; i < 40; i++) {
-    flickerDelayA[i] = int(random(0, 150));  // how long to be off for some of them
-    flickerDelayB[i] = int(random(0, 150));
-    flickerDelayC[i] = int(random(0, 150));
-    flickerDelayD[i] = int(random(0, 150));
+  // 2. one starts to flicker:
+
+  // after some time:
+  if (millis() - lastStamp > 10000 && (lastTime == 0)) {
+    // flicker 1st one
+    Serial.print("Limit is: ");
+    Serial.println(limit);
+    flickerGroup(limit);
+    lastTime = 1;  // let's not come here again
+    lastStamp = millis(); //new time stamp
   }
 
-  // function to flip a light to flicker pool:
   // every so often
-  // make a new light be a flickerer
-
-  // then flicker all the lights
-
-  
-  Serial.println("starting loop");
-  //for ( int i = 0; i < 312500000; i= i * 50.3) {  //nice flicker with this
-  for (char i = 0; i < sizeof(flickerDelay2) / sizeof(char); i++) {
-    // another for loop here to go through all of the flicker lights
-    tlc.setPWM(1, miniMaxx);  //level
-    // end for loop
-    tlc.write();
-    delay(flickerDelay1[i]);  //delay  on
-    // for loop again for all the flicker lights to go off
-    tlc.setPWM(1, 0);
-    // end for loop
-    tlc.write();
-    // delay off:
-    if (i % 3 == 0) {
-      delay(flickerDelayA[i]);
-    } else {
-      delay(5);
-   }
+  // 2.c make a new light be a flickerer
+  // regardless:
+  else if ( millis() - lastStamp > timeLimit && (lastTime == 1)) {
+    Serial.println(limit);
+    if (limit < 4) {
+      limit++;
+    }
+    else if (limit >= 4) {
+      limit = 0;
+    }
+    Serial.print("Limit is: ");
+    Serial.println(limit);
+    flickerGroup(limit);
+    lastStamp = millis();
   }
-  Serial.println("ending");
-
-  
-
-  
-  //delay(3000);
-
-
 
 
   /*
@@ -341,10 +336,59 @@ void loop() {
   tlc.write();
   */
 
-  Serial.println("end of loop");
+  //Serial.println("end of loop");
 
 
 }  // end of loop
+
+void  flickerGroup(char limit_) { // flicker the lights
+  // 2. one starts to flicker:
+  // 2.a - Seed random lengths to be on and off
+  for (int i = 0; i < 40; i++) {
+    flickerDelay1[i] = int(random(0, 80));  // how long to be on
+    flickerDelay2[i] = int(random(0, 80));
+    flickerDelay3[i] = int(random(0, 80));
+    flickerDelay4[i] = int(random(0, 80));
+  }
+  for (int i = 0; i < 40; i++) {
+    flickerDelayA[i] = int(random(0, 150));  // how long to be off for some of them
+    flickerDelayB[i] = int(random(0, 150));
+    flickerDelayC[i] = int(random(0, 150));
+    flickerDelayD[i] = int(random(0, 150));
+  }
+
+  char j = 0;
+  //Serial.println("starting loop");
+  //for ( int i = 0; i < 312500000; i= i * 50.3) {  //nice flicker with this
+  for (char i = 0; i < sizeof(flickerDelay2) / sizeof(char); i++) {
+    // another for loop here to go through all of the flicker lights
+    //for( j = limit; j <sizeof(flickerOrder)/sizeof(char); j++){
+    while ( j <= limit_) {
+      tlc.setPWM(flickerOrder[j], miniMaxx);  //level
+      j++;
+      Serial.println(j);
+    }// end for loop
+    j = 0;
+    tlc.write();
+    delay(flickerDelay1[i]);  //delay  on
+
+    while ( j <= limit_) {
+      //  loop again for all the flicker lights to go off
+      tlc.setPWM(flickerOrder[j], 0);
+      j++; // light the rest of the ones we are supposed to be lighting
+      Serial.println(j);
+    }// end for loop
+    j = 0;
+    tlc.write();
+    // delay off:
+    if (i % 3 == 0) {  // every so often, have a larger delay
+      delay(flickerDelayA[i]);
+    } else {
+      delay(5);
+    }
+  }
+  //Serial.println("ending");
+}
 
 void flickerBunchA(float tempo, int t, uint32_t level) {
   for (int j = 0; j < t; j++) {
