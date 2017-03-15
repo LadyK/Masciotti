@@ -43,7 +43,7 @@ int flickerCount = 0;
 
 // intervals:
 long flickerInterval = 500;  // debounce
-long flickerInterval_big = int(random(5000, 6000));  // this times in the other flickers gradually
+long flickerInterval_big = int(random(5000, 10000));  // this times in the other flickers gradually
 
 const int buttonInterval = 300; // number of millisecs between button readings
 
@@ -61,23 +61,23 @@ int whichOne = 0;
 //light array series:
 byte randLights[] = {3, 6, 2, 4, 1, 7, 0, 5, 8};
 byte lightSpiral[] = {4, 3, 5, 6, 2, 1, 7, 8, 0 };
-byte flickerOrder[] = {0, 3, 4, 5, 6, 7, 4, 2, 8, 6};
+byte flickerOrder[] = {0, 3, 6, 5, 6, 7, 4, 2, 8, 6};
 
 // delay lengths:
 int delayPts[] = {50, 100, 15, 200, 50};
 int delayPts2[] = {10, 50, 8, 100, 25};
 int flickerDelay[] = {100, 2000, 123, 223, 825, 400, 80};
 
-int len = 40; // originally were 40 in length
-int flickerDelay1[40];  // originally were 40 in length; trying to thread 2 2gether more closely
-int flickerDelay2[40];
-int flickerDelay3[40];
-int flickerDelay4[40];
+int len = 10; // originally were 40 in length
+int flickerDelay1[10];  // originally were 40 in length; trying to thread 2 2gether more closely
+int flickerDelay2[10];
+int flickerDelay3[10];
+int flickerDelay4[10];
 
-int flickerDelayA[40];
-int flickerDelayB[40];
-int flickerDelayC[40];
-int flickerDelayD[40];
+int flickerDelayA[10];
+int flickerDelayB[10];
+int flickerDelayC[10];
+int flickerDelayD[10];
 
 // pwm pace is largely set here:
 long range[] = { 255, 257, 771, 1285, 3855, 4369};
@@ -136,7 +136,7 @@ void loop() {
     // after a certain time, begin to flicker:  Triggered by switch
     if (flickerState == LOW)   {
       flickerDance();
-    } 
+    }
 
     // after all flicking + some time, turn brighter:
 
@@ -146,7 +146,7 @@ void loop() {
 
     // then some more flicker
 
-  }// we are not off inside above 
+  }// we are not off inside above
 
 } // loop
 
@@ -169,28 +169,34 @@ void flickerDance() {
     flickerDelayD[i] = int(random(0, 150));
   }
 
-  /------ NEED TO FINESSE THE PAUSES BWTN ROUNDS
-
+  //------ NEED TO FINESSE THE PAUSES BWTN ROUNDS
+  flickerInterval_big = int(random(5000, 10000));
   // flicker a few bulbs gradually over time
   // while the switch is throw and it's just thrown:
   while ( (millis - startFlickerMillis < flickerInterval_big) && (l < 1) ) {
     flicker(l);
+    Serial.print("First flicker, less than interval under  "); Serial.println(l);
   }
-  flickerInterval_big = int(random(5000, 8000));
+  //flickerInterval_big = int(random(5000, 10000));
   //after we've triggered our first flickerer and past a time period, go to next light
   while ( (millis - startFlickerMillis > flickerInterval_big) && (l < 4) ) {
     l++;  //increment the light
+    Serial.print("past 1 flicker, less than interval under  "); Serial.println(l);
     internalFlickerMillis = millis();
+    Serial.print("new internalFlickerMillis and l is: "); Serial.println(l);
     while (millis() - internalFlickerMillis < flickerInterval_big) {
       flicker(l);  // flicker the next light
+      Serial.println("internalFlickerMillis is less than big ");
     } // while flicker
-
+    Serial.println("should increment l ");
   } // while we are still under 4
 
   if ( l >= 4) l = 0;
- 
+
 
   // after all flicking + some time, turn brighter:
+  // do it manually: read switch to turn brighter
+
 } // flicker state
 
 
@@ -223,7 +229,7 @@ void flicker(int light) {
   //flickerTravel(light);  // takes them out to darkness individually
 
   //******
-  
+
 } //flicker
 
 void flickerTwo() {
