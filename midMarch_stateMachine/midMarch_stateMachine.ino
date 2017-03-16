@@ -49,6 +49,7 @@ byte steadyOffState = HIGH;
 byte previousSteadyOffState = HIGH;
 byte steadyOnState = HIGH;
 bool pwmStart = 0;
+byte previousFlickerDeathState = HIGH;
 
 int flickerCount = 0;
 
@@ -181,7 +182,7 @@ void loop() {
     }
 
     // after all flicking + some time, turn brighter + die
-    if ( flickerBrighterState == LOW) {
+    if(  flickerBrighterState == LOW && previousFlickerDeathState == LOW) {
       // go through 4 lights
       //******* time delay between each ??
       for (int i = 0; i < 4; i++) {
@@ -191,7 +192,8 @@ void loop() {
 
         //}
       }
-      delay(3000); // just to make it more obvious for testing/operating
+      previousFlickerDeathState = HIGH;
+      //delay(3000); // just to make it more obvious for testing/operating
     }
 
 
