@@ -16,10 +16,13 @@ const int offButton = 2;
 const int flickerButton = 3;
 const int flickerBrighterButton = 4;
 const int pulseButton = 5;
-const int steadyOffButton = 6;
+//const int steadyOffButton = 6;
+const int flicker4Button = 6;
 const int steadyOnButton = 10;
+const int flicker4OffButton = 7;
+const int flicker4OffStateBackButton = 8;
 
-const int numButtons = 6;
+const int numButtons = 8;
 const int potPin = A0;
 const int dataPin = 11;
 const int clockPin = 13;
@@ -35,8 +38,8 @@ const uint32_t miniMaxx = 10000; //21845; //32700;
 const uint32_t level_increment = maxx / numLights;  // divide the num of lights by the max, to evenly di
 
 
-const int switches[] = {offButton, flickerButton, flickerBrighterButton, pulseButton, steadyOffButton, steadyOnButton};
-int switchReadings[6];
+const int switches[] = {offButton, flickerButton, flickerBrighterButton, pulseButton, flicker4Button, steadyOnButton, flicker4OffButton, flicker4OffStateBackButton};
+int switchReadings[8];
 
 Adafruit_TLC59711 tlc = Adafruit_TLC59711(NUM_TLC59711, clockPin, dataPin);
 // ----------- VARIABLES (will change)
@@ -51,6 +54,10 @@ byte previousSteadyOffState = HIGH;
 byte steadyOnState = HIGH;
 bool pwmStart = 0;
 byte previousFlickerDeathState = LOW;
+byte flicker4State = HIGH;
+byte flicker4OffState = HIGH;
+byte flicker4OffStateBack = HIGH;
+byte previousFlicker4state = 0;
 
 int flickerCount = 0;
 
@@ -60,6 +67,8 @@ long flickerInterval_big = int(random(5000, 10000));  // this times in the other
 long flickerInterval_b4Bright = 50000;
 const int buttonInterval = 300; // number of millisecs between button readings
 long steadyOffInterval = 10000;
+
+unsigned long flickerInterval_quiet = 0;
 
 // each's millis tracker:
 unsigned long startFlickerMillis = 0; //this keeps track of when the last flickerer was flicked for brightness + triggering steady
@@ -111,7 +120,7 @@ int flickerDelayZ[40];
 // pwm pace is largely set here:
 long range[] = { 255, 257, 771, 1285, 3855, 4369};
 int rangeLength = 6;
-
+//int l_ = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -173,15 +182,44 @@ void loop() {
           }
           tlc.write();
     */
-    //Serial.print("steadyOnState is: "); Serial.println(steadyOnState);
-    //Serial.println("we should be off");
+    
 
-
-    // after a certain time, begin to flicker:  Triggered by switch
+    // check the switches:
+    
     if (flickerState == LOW)   {
-      flickerDance();
+      //flickerDance();
       //flickerDance2();
+      /* //need this for flickerDance3
+        if ((flickerCount > numLights) || flickerCount == 0) {
+        //Serial.println("flickerCount at 0, reset");
+        flickerCount = 0;
+        }
+      */
+      //flickerCount = flickerDance3(flickerCount);
+      flickerCount = flickerDance4();
+
     }
+
+
+
+    if ( flicker4State == LOW) {
+      flicker4(0);
+
+    }
+
+    if (flicker4OffState == LOW) {
+      flicker4Off();
+      previousFlicker4state = 1 ; // invert the state
+    }
+
+    if ((flicker4OffStateBack == LOW) && (previousFlicker4state == 1) ){
+      previousFlicker4state = 0 ; // invert the state
+      flicker4OffBack();
+    }
+
+   
+
+
 
     // after all flicking + some time, turn brighter + die
     if (  flickerBrighterState == LOW && previousFlickerDeathState == LOW) {
@@ -208,20 +246,21 @@ void loop() {
 
     // then turn the steady ones off
 
-    if ( steadyOffState == LOW &&  previousSteadyOffState != LOW) {
+    /*
+        if ( steadyOffState == LOW &&  previousSteadyOffState != LOW) {
 
-      //Serial.println("we flip-flopped");
-      //*********** delay between each one needed
-      //for (int i = 0; i < 2; i++) {
-      //torch = 0;
-      steadyOff();
-      //delay(500);
-      //}
-      previousSteadyOffState = steadyOffState;
+          //Serial.println("we flip-flopped");
+          //*********** delay between each one needed
+          //for (int i = 0; i < 2; i++) {
+          //torch = 0;
+          steadyOff();
+          //delay(500);
+          //}
+          previousSteadyOffState = steadyOffState;
 
 
-    }
-
+        }
+    */
     // rise to pulse
     if (pulseState == LOW) {
       int pot_r = analogRead(pwm_pot);
@@ -240,62 +279,95 @@ void loop() {
 
 
 
-    previousSteadyOffState = steadyOffState;
+    //previousSteadyOffState = steadyOffState;
   }// we are on & inside above
 
-} //----------- of main loop
+} //----------- of main loop !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-void steadyOff() {
-  // take the constant ones off
-  // perhaps the others are flickering
-  Serial.println("we are in steady");
-  // take a light from the constant array
-  for (int i = 0; i < numLights; i++) { //sizeof(steady) / sizeof(int)
-    Serial.print("State of Light "); Serial.print(i); Serial.print(" is: "); Serial.println(stateOfLight[i]);
-    // if we are a flickering light
-    if ((stateOfLight[i] = 'f') || (stateOfLight[i] = 'd')) {
-      //continue;
-      Serial.println("f or d, moving along");
-    } else if (stateOfLight[i] = 's') {
 
-      //turn that light off with a firey exit:
-      uint32_t pace_ = level_increment;
-
-      for (uint32_t level_increment_ = miniMaxx; level_increment_ < maxx; level_increment_ += pace_) {
-        // have it increase rapidly,
-        // close to end? Get brighter.....or waver back and forth quickly?
-
-        if ( level_increment_ >= ( (maxx / 3) * 2 ) ) {
-          level_increment_++;
-        }
-        tlc.setPWM(i, level_increment_);  // turn that direct light...
-        tlc.write(); // print to light
-        delay(200);  //getting faster as it gets larger??
-      }
-      Serial.println("we off");
-      tlc.setPWM(i, 0); // turn off  // turn that direct light...
-      stateOfLight[i] = 'd';
-      // Serial.println("next light");
-      // Serial.println(steady[i]);
-    }
-
-    //Serial.println("f or d, moving along");
-
-
+int flickerDance4() {  //BUGGGGYYYYYYYY
+  // flick the light for a bit before moving to next one
+  // keeps rotating between 4
+  int l_ = 0;
+  // pick interval to be quiet
+  int rando = random(0, 10);
+  if (rando > 6) {
+    //****** CHANGE QUIET LENGTHS HERE:
+    flickerInterval_quiet = int(random(2000, 5000));  // pick a delay interval before nxt light
+    Serial.println("shorter quiet period");
   }
-  //take a time stamp for starting
-  // are we beyond the interval
-  /*
-    if (millis() - steadyOffMillis > steadyOffInterval) {
+  else {
+    //****** CHANGE QUIET LENGTHS HERE:
+    flickerInterval_quiet = int(random(10000, 15000));
+    Serial.println("longer quiet period");
+  }
 
-    }
-  */
-  // darkness
-  previousSteadyOffState = steadyOffState;
+  flickerInterval_big = int(random(5000, 10000)); // flicker duration
+
+  startFlickerMillis = millis(); // initial time stamp
+
+  // while we are less than both the pause and the flicker interval:
+
+  while (millis() - startFlickerMillis < (flickerInterval_quiet + flickerInterval_big ) ) {
+    // keep flickering our light
+
+    while (millis() - startFlickerMillis < flickerInterval_big) {
+      flicker(flickerOrder[l_]);
+    } //while
+    //Serial.println("done flickering");
+    //Serial.println("still waiting for quiet to be done");
+
+  }// while
+
+  Serial.print("number: " ); Serial.println(l_);
+  Serial.print("Light: " ); Serial.println(flickerOrder[l_]);
+
+  if (l_ > 4) {
+    l_ = 0;
+  }
+  else {
+    l_++;
+  }
+
+  return l_;
 
 }
 
+int flickerDance3(int l_) {
+  // flick the light for a bit before moving to next one
+  // keeps rotating
+
+  // pick interval to be quiet
+  int rando = random(0, 10);
+  if (rando > 6) {
+    //****** CHANGE QUIET LENGTHS HERE:
+    flickerInterval_quiet = int(random(2000, 5000));  // pick a delay interval before nxt light
+    Serial.println("shorter quiet period");
+  }
+  else {
+    //****** CHANGE QUIET LENGTHS HERE:
+    flickerInterval_quiet = int(random(12000, 20000));
+    Serial.println("longer quiet period");
+  }
+
+  flickerInterval_big = int(random(5000, 10000)); // flicker duration
+  startFlickerMillis = millis(); // initial time stamp
+  while (millis() - startFlickerMillis < (flickerInterval_quiet + flickerInterval_big ) ) {
+    // keep flickering our light
+
+    while (millis() - startFlickerMillis < flickerInterval_big) {
+      flicker(l_);
+    } //while
+    
+
+  }// while
+
+ 
+  l_++;
+  return l_;
+
+}
 
 // this flickers a set of lights gradually over time
 void flickerDance() {
@@ -346,30 +418,25 @@ void flickerDance() {
     Serial.println(l);
     while (millis() - internalFlickerMillis < flickerInterval_big) {
       flicker(l);  // flicker the next light
-
-      //readButton(); // uncomment this to not have it move. bade idea
     } // while flicker
-
-
   } // next while up
-
-
-
 } // flicker Dance
 
+
 // working several simultaneously
-void flickerDance2() {
-  int numL;
+void flicker4(int numL) {
+
   for (char i = 0; i < sizeof(flickerDelay1) / sizeof(int); i++) {
 
-    for (int j = 0; j < 4; j++) {
-      numL = flickerOrder[j];
+    //for (int j = numL; j < (numL + 4); j++) {
+    for (int j = 0; j <  4; j++) {
       tlc.setPWM(flickerOrder[j], miniMaxx);  //level
       tlc.write();
     }
 
     delay(flickerDelay1[i]);
-    for (int j = 0; j < 4; j++) {
+    //for (int j = numL; j < (numL + 4); j++) {
+    for (int j = 0; j <  4; j++) {
       tlc.setPWM(flickerOrder[j], 0);
       tlc.write();
     }
@@ -382,7 +449,8 @@ void flickerDance2() {
       delay(5);
     }
     // leave on when exiting:
-    for (int j = 0; j < 4; j++) {
+    //for (int j = numL; j < (numL + 4); j++) {
+    for (int j = 0; j <  4; j++) {
       tlc.setPWM(flickerOrder[j], miniMaxx);  //level
       // stateOfLight[flickerOrder[j]] = 'f';  // or steady
 
@@ -390,12 +458,9 @@ void flickerDance2() {
       //flickerTravel(j);
     }
 
-    //readButton(); // uncomment this to not have it move. bad idea
+
   } // for-loop for one light
 
-  //stateOfLight[flickerOrder[light]] = 'f';
-  //int numL = flickerOrder[j];
-  stateOfLight[numL] = 'f';
 
 
   //********** fun glitches with the above. uncomment one by one:
@@ -405,7 +470,22 @@ void flickerDance2() {
 
   //******
 
-} // flickerDance2
+} // flicker4
+
+void flicker4Off() {
+  for (int j = 0; j <  4; j++) {
+    tlc.setPWM(flickerOrder[j], 0);  //level
+    tlc.write();
+  }
+}
+
+void flicker4OffBack() {
+  for (int j = 0; j <  4; j++) {
+    tlc.setPWM(flickerOrder[j], miniMaxx);  //level
+    tlc.write();
+  }
+}
+
 
 // this lights up one light in flicker pattern
 void flicker(int light) {
@@ -507,6 +587,57 @@ void two_glitchFlicker(int l1_, int l2_) {
     tlc.setPWM(l2_, miniMaxx);
   }
 
+
+}
+
+
+void steadyOff() {
+  // take the constant ones off
+  // perhaps the others are flickering
+  Serial.println("we are in steady");
+  // take a light from the constant array
+  for (int i = 0; i < numLights; i++) { //sizeof(steady) / sizeof(int)
+    Serial.print("State of Light "); Serial.print(i); Serial.print(" is: "); Serial.println(stateOfLight[i]);
+    // if we are a flickering light
+    if ((stateOfLight[i] = 'f') || (stateOfLight[i] = 'd')) {
+      //continue;
+      Serial.println("f or d, moving along");
+    } else if (stateOfLight[i] = 's') {
+
+      //turn that light off with a firey exit:
+      uint32_t pace_ = level_increment;
+
+      for (uint32_t level_increment_ = miniMaxx; level_increment_ < maxx; level_increment_ += pace_) {
+        // have it increase rapidly,
+        // close to end? Get brighter.....or waver back and forth quickly?
+
+        if ( level_increment_ >= ( (maxx / 3) * 2 ) ) {
+          level_increment_++;
+        }
+        tlc.setPWM(i, level_increment_);  // turn that direct light...
+        tlc.write(); // print to light
+        delay(200);  //getting faster as it gets larger??
+      }
+      Serial.println("we off");
+      tlc.setPWM(i, 0); // turn off  // turn that direct light...
+      stateOfLight[i] = 'd';
+      // Serial.println("next light");
+      // Serial.println(steady[i]);
+    }
+
+    //Serial.println("f or d, moving along");
+
+
+  }
+  //take a time stamp for starting
+  // are we beyond the interval
+  /*
+    if (millis() - steadyOffMillis > steadyOffInterval) {
+
+    }
+  */
+  // darkness
+  previousSteadyOffState = steadyOffState;
 
 }
 
@@ -689,15 +820,17 @@ void readButton() {
   //if (millis() - startFlickerMillis >= flickerInterval) {
   if (digitalRead(flickerButton) == LOW) {
     flickerState = LOW;
-    flickerCount = 1;
+    //Serial.print("flickerCount is: ");  Serial.println(flickerCount);
+    //flickerCount = 1;
     //flickerState = ! flickerState; //flip flop state
     //startFlickerMillis += flickerInterval;
-    startFlickerMillis = millis(); // take a time stamp for when we start the timer
+    //startFlickerMillis = millis(); // take a time stamp for when we start the timer
   }
   //}
 
   else if (digitalRead(flickerButton) == HIGH) {
     flickerState = HIGH;
+    flickerCount = 0;
   }
 
   if (digitalRead(flickerBrighterButton) == LOW) {
@@ -714,15 +847,14 @@ void readButton() {
   }
 
 
-  if (digitalRead(steadyOffButton) == LOW) {
+  if (digitalRead(flicker4Button) == LOW) {
 
-    steadyOffState = LOW;
-    //Serial.print("steadyOffState is: ");Serial.println(steadyOffState);
+    flicker4State = LOW;
+
 
   }
-  else if (digitalRead(steadyOffButton) == HIGH) {
-    steadyOffState = HIGH;
-    //Serial.print("steadyOffState is: ");Serial.println(steadyOffState);
+  else if (digitalRead(flicker4Button) == HIGH) {
+    flicker4State = HIGH;
 
   }
 
@@ -743,6 +875,20 @@ void readButton() {
   else if (digitalRead(pulseButton) == HIGH) {
     pulseState = HIGH;
     pwmStart == 0;
+  }
+
+  if (digitalRead(flicker4OffButton) == LOW) {
+    flicker4OffState = LOW;
+  }
+  else if (digitalRead(flicker4OffButton) == HIGH) {
+    flicker4OffState = HIGH;
+  }
+
+   if (digitalRead(flicker4OffStateBackButton) == LOW) {
+    flicker4OffStateBack = LOW;
+  }
+  else if (digitalRead(flicker4OffStateBackButton) == HIGH) {
+    flicker4OffStateBack = HIGH;
   }
 
 
