@@ -83,7 +83,7 @@ unsigned long previousOffMillis;
 unsigned long internalFlickerMillis;
 unsigned long steadyOffMillis;
 unsigned long flickerDeathLimit;
-
+unsigned long flickerBurnOutLimit;
 
 
 // others:
@@ -263,10 +263,15 @@ void loop() {
       uint32_t pace = 771; //51;
       Serial.println(pace);
       strainBurnOut(pace);
+      flickerBurnOutLimit = millis();
       //burnoutHappen = false;  // we only want to happen once
       previousburnoutHappen = true;
     }
 
+  if (millis() - flickerBurnOutLimit > 20000) {  // after time, come back enable
+      previousburnoutHappen = false;
+      // Serial.println("reset + re-enable");
+    }
 
     /**** not using this one ***/
     // after all flicking + some time, turn brighter + die
