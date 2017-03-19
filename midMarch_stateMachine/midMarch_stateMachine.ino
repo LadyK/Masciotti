@@ -63,6 +63,7 @@ byte burnoutButtonstate = HIGH;
 
 bool pwmStart = 0;
 bool steady4Flick = false;
+bool previousburnoutHappen = false;
 bool burnoutHappen = false;
 
 int flickerCount = 0;
@@ -163,14 +164,16 @@ void setup() {
   tlc.write();
   torch = 1;
   // hold off for a few seconds:
-  delay(2000);
+  delay(200);
 
 }
 
 
 void loop() {
 
+
   readButton(); // are we trying to turn off? or flicker? or brighter flicker/
+
 
   // if we are not off:
   if (offButtonState != LOW) {
@@ -191,7 +194,7 @@ void loop() {
     */
 
 
-    // check the switches:
+    // check All of the switches:
 
     if (flickerState == LOW)   {
       //flickerDance();
@@ -199,10 +202,11 @@ void loop() {
 
       // turns between all of them:
       //flickerCount = flickerDance3(flickerCount);
-
+      // /*
       for (int i = 0; i < 4; i++) {  // only does for in flickerOrder Array
         flickerCount = flickerDance4(i);
       }
+      //*/
     }
 
 
@@ -226,7 +230,7 @@ void loop() {
         if (digitalRead(flicker4OffButton) == LOW) {
           steady4Flick = false;
         }
-        Serial.println(steady4Flick);
+        //Serial.println(steady4Flick);
       }
     }
     //steady4Flick = false;
@@ -249,19 +253,22 @@ void loop() {
       flicker4OffBack();
     }
 
-
+    Serial.print("before if-statement: ");Serial.println(burnoutButtonstate);
     //rise, strain then burn out:
-    if ( (burnoutButtonstate == LOW) && (burnoutHappen = true) ) {
-      int pot_r = analogRead(pwm_pot);
-      Serial.print("pot is: "); Serial.println(pot_r);
-      uint32_t pace = map(pot_r, 0, 1023, 0, rangeLength);
+    if ( (burnoutButtonstate == LOW) && (burnoutHappen = true) &&( previousburnoutHappen == false ) ) {  //&& (burnoutHappen = true)
+      //int pot_r = analogRead(pwm_pot);
+      //Serial.print("burnout pot is: "); Serial.println(pot_r);
+      //uint32_t pace = map(pot_r, 0, 1023, 0, rangeLength);
+      // 1, 3, 5, 15, 17, 51, 85, 255, 257, 771, 1285, 3855, 4369, 13107, 21845, 65535
+      uint32_t pace = 771; //51;
       Serial.println(pace);
       strainBurnOut(pace);
-      burnoutHappen = false;  // we only want to happen once
+      //burnoutHappen = false;  // we only want to happen once
+      previousburnoutHappen = true;
     }
 
 
-
+    /**** not using this one ***/
     // after all flicking + some time, turn brighter + die
     if (  flickerBrighterState == LOW && previousFlickerDeathState == LOW) {
       flickerDeathLimit = millis();
@@ -284,6 +291,8 @@ void loop() {
       previousFlickerDeathState = LOW;
       // Serial.println("reset + re-enable");
     }
+    /**** not using this one ***/
+
 
     // then turn the steady ones off
 
@@ -323,11 +332,12 @@ void loop() {
     //previousSteadyOffState = steadyOffState;
   }// we are on & inside above
 
-} //----------- of main loop !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+} //----------- of main loop !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 void strainBurnOut(uint32_t pace_) {
   uint32_t last;
+
   //------ rise to 2/3 light level:
   // 1, 3, 5, 15, 17, 51, 85, 255, 257, 771, 1285, 3855, 4369, 13107, 21845, 65535
   for (uint32_t level_increment = miniMaxx; level_increment <= 21845; level_increment += pace_) {  // for (uint32_t level_increment = 0; level_increment <= 65535; level_increment += 255) { works
@@ -336,7 +346,7 @@ void strainBurnOut(uint32_t pace_) {
       tlc.setPWM(i, level_increment);
     }
     tlc.write(); // time here and all at once w/o delay below;  w/delay below time btwn ea step
-    delay(100); // time btwn each stage
+    delay(150); // time btwn each stage
     //Serial.println(level_increment);
     last = level_increment;
   }
@@ -372,33 +382,33 @@ void strainBurnOut(uint32_t pace_) {
       }
       // leave on when exiting:
       for (int j = 0; j <  numLights; j++) {
-        tlc.setPWM(j, 43690);  // 2/3 level
+        tlc.setPWM(j, 21845 );  // 2/3 level  21845  43690
       }
       tlc.write();
 
-    } // for-loop for one light
+    } // for-one sequence
+  }// time increment
+
+
+
+
+
+  // then rise to full brillance:
+  for (uint32_t level_increment = 43690; level_increment <= maxx; level_increment *= 5) {  // for (uint32_t level_increment = 0; level_increment <= 65535; level_increment += 255) { works
+    //Serial.println("inside increase");
+    for (int i = 0; i < 9; i++) {
+      tlc.setPWM(i, level_increment);
+    }
+    tlc.write(); // time here and all at once w/o delay below;  w/delay below time btwn ea step
+    delay(100);
   }
-} // time increment
-
-
-
-
-// then rise to full brillance:
-for (uint32_t level_increment = 43690; level_increment <= maxx; level_increment *= 5) {  // for (uint32_t level_increment = 0; level_increment <= 65535; level_increment += 255) { works
-  //Serial.println("inside increase");
-  for (int i = 0; i < 9; i++) {
-    tlc.setPWM(i, level_increment);
-  }
-  tlc.write(); // time here and all at once w/o delay below;  w/delay below time btwn ea step
-  delay(100);
-
 
   //flicker back and forth quickly  (on/off super fast)
   // for a short period of time
 
-  int timeIncrement = 3000;
-  unsigned long initial = millis();
-  if (millis() - initial < timeIncrement) {
+  int fastFlickerDur = 3000;
+  unsigned long tstamp = millis();
+  if (millis() - tstamp < fastFlickerDur) {
     //fast flicker
 
     for (char i = 0; i < sizeof(flickerDelay1) / sizeof(int); i++) {
@@ -424,7 +434,7 @@ for (uint32_t level_increment = 43690; level_increment <= maxx; level_increment 
         delay(5);
       }
 
-    }// for-loop for one light
+    }// for-one sequence
   }  // time increment
 
 
@@ -457,10 +467,15 @@ int flickerDance4(int lite) {
     flickerInterval_quiet = int(random(10000, 15000));
     Serial.println("longer quiet period");
   }
-
-  flickerInterval_big = int(random(5000, 10000)); // flicker duration
-  startFlickerMillis = millis(); // initial time stamp
-
+  //not to delay long with the first light
+  if ( lite == 0) {
+    flickerInterval_big = 0;
+    flickerInterval_quiet = 2000;
+  }
+  else {
+    flickerInterval_big = int(random(5000, 10000)); // flicker duration
+    startFlickerMillis = millis(); // initial time stamp
+  }
   // while we are less than both the pause and the flicker interval:
 
   while (millis() - startFlickerMillis < (flickerInterval_quiet + flickerInterval_big ) ) {
@@ -1085,14 +1100,16 @@ void readButton() {
     flicker4OffStateBack = HIGH;
   }
 
-  if (digitalRead(burnoutButton) == LOW) {
+  if (digitalRead(burnoutButton) == HIGH) {
+    burnoutButtonstate = HIGH;
+    //burnoutHappen = false;
+  }
+  else if (digitalRead(burnoutButton) == LOW) {
     burnoutButtonstate = LOW;
     burnoutHappen = true;
+    //previousburnoutHappen = false;
   }
-  else if (digitalRead(burnoutButton) == HIGH) {
-    burnoutButtonstate = HIGH;
-    burnoutHappen = false;
-  }
+
 
 
   else {
