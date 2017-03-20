@@ -23,7 +23,7 @@ const int flicker4OffButton = 7;
 const int flicker4OffStateBackButton = 8;
 const int burnoutButton = 9;
 
-const int numButtons = 8;
+const int numButtons = 9;
 const int potPin = A0;
 const int dataPin = 11;
 const int clockPin = 13;
@@ -201,10 +201,10 @@ void loop() {
       //flickerDance2();
 
       // turns between all of them:
-      //flickerCount = flickerDance3(flickerCount);
+      flickerCount = flickerDance3(flickerCount);
       // /*
       for (int i = 0; i < 4; i++) {  // only does for in flickerOrder Array
-        flickerCount = flickerDance4(i);
+        //flickerCount = flickerDance4(i);
       }
       //*/
     }
@@ -215,11 +215,12 @@ void loop() {
 
       //have we already started recently?
       if (steady4Flick != true) {
-        //gradually bring 4 in
-        for (int i = 0; i < 4; i++) {
-          flicker4Gradually(i);
-          if ( i >= 3) steady4Flick = true;
-        }
+        /* //gradually bring 4 in
+          for (int i = 0; i < 4; i++) {
+           flicker4Gradually(i);
+           if ( i >= 3)
+        */steady4Flick = true;
+        // }
 
       }
 
@@ -253,9 +254,9 @@ void loop() {
       flicker4OffBack();
     }
 
-    Serial.print("before if-statement: ");Serial.println(burnoutButtonstate);
+    Serial.print("before if-statement: "); Serial.println(burnoutButtonstate);
     //rise, strain then burn out:
-    if ( (burnoutButtonstate == LOW) && (burnoutHappen = true) &&( previousburnoutHappen == false ) ) {  //&& (burnoutHappen = true)
+    if ( (burnoutButtonstate == LOW) && (burnoutHappen = true) && ( previousburnoutHappen == false ) ) { //&& (burnoutHappen = true)
       //int pot_r = analogRead(pwm_pot);
       //Serial.print("burnout pot is: "); Serial.println(pot_r);
       //uint32_t pace = map(pot_r, 0, 1023, 0, rangeLength);
@@ -268,7 +269,7 @@ void loop() {
       previousburnoutHappen = true;
     }
 
-  if (millis() - flickerBurnOutLimit > 20000) {  // after time, come back enable
+    if (millis() - flickerBurnOutLimit > 20000) {  // after time, come back enable
       previousburnoutHappen = false;
       // Serial.println("reset + re-enable");
     }
@@ -345,13 +346,13 @@ void strainBurnOut(uint32_t pace_) {
 
   //------ rise to 2/3 light level:
   // 1, 3, 5, 15, 17, 51, 85, 255, 257, 771, 1285, 3855, 4369, 13107, 21845, 65535
-  for (uint32_t level_increment = miniMaxx; level_increment <= 21845; level_increment += pace_) {  // for (uint32_t level_increment = 0; level_increment <= 65535; level_increment += 255) { works
+  for (uint32_t level_increment = miniMaxx; level_increment <= maxx; level_increment += 1285) {  // for (uint32_t level_increment = 0; level_increment <= 65535; level_increment += 255) { works
     //Serial.println("inside increase");
     for (int i = 0; i < 9; i++) {
       tlc.setPWM(i, level_increment);
     }
     tlc.write(); // time here and all at once w/o delay below;  w/delay below time btwn ea step
-    delay(150); // time btwn each stage
+    delay(100); // time btwn each stage
     //Serial.println(level_increment);
     last = level_increment;
   }
@@ -399,7 +400,7 @@ void strainBurnOut(uint32_t pace_) {
 
 
   // then rise to full brillance:
-  for (uint32_t level_increment = 43690; level_increment <= maxx; level_increment *= 5) {  // for (uint32_t level_increment = 0; level_increment <= 65535; level_increment += 255) { works
+  for (uint32_t level_increment = 21845; level_increment <= maxx; level_increment *= 5) {  // for (uint32_t level_increment = 0; level_increment <= 65535; level_increment += 255) { works
     //Serial.println("inside increase");
     for (int i = 0; i < 9; i++) {
       tlc.setPWM(i, level_increment);
@@ -464,12 +465,12 @@ int flickerDance4(int lite) {
   int rando = random(0, 10);
   if (rando > 6) {
     //****** CHANGE QUIET LENGTHS HERE:
-    flickerInterval_quiet = int(random(2000, 5000));  // pick a delay interval before nxt light
+    flickerInterval_quiet = int(random(1000, 5000));  // pick a delay interval before nxt light
     Serial.println("shorter quiet period");
   }
   else {
     //****** CHANGE QUIET LENGTHS HERE:
-    flickerInterval_quiet = int(random(10000, 15000));
+    flickerInterval_quiet = int(random(5000, 8000));
     Serial.println("longer quiet period");
   }
   //not to delay long with the first light
@@ -505,12 +506,12 @@ int flickerDance3(int l_) {
   int rando = random(0, 10);
   if (rando > 6) {
     //****** CHANGE QUIET LENGTHS HERE:
-    flickerInterval_quiet = int(random(2000, 5000));  // pick a delay interval before nxt light
+    flickerInterval_quiet = int(random(1000, 5000));  // pick a delay interval before nxt light
     Serial.println("shorter quiet period");
   }
   else {
     //****** CHANGE QUIET LENGTHS HERE:
-    flickerInterval_quiet = int(random(12000, 20000));
+    flickerInterval_quiet = int(random(5000, 10000));
     Serial.println("longer quiet period");
   }
 
